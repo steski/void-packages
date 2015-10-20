@@ -1,0 +1,23 @@
+# Template file for 'xpkgfile'
+pkgname=xpkgfile
+version=0.1
+revision=1
+_commit=f9e6876bc66f413f1edf058ce6892aa0dc09cfff
+wrksrc="${pkgname}-${_commit}"
+makedepends="libxbps-devel"
+short_desc="XBPS package files searching utility"
+maintainer="Steve Prybylski <sa.prybylx@gmail.com>"
+license="2-clause-BSD"
+homepage="https://github.com/stpx/xpkgfile"
+distfiles="https://github.com/stpx/${pkgname}/archive/${_commit}.tar.gz"
+checksum=3eaf8016911bed81c71537632c63fac652a8c4d0e144415f3644d58c25a3e4e0
+
+do_build() {
+	make CC=$CC
+}
+
+do_install() {
+	vbin xpkgfile
+	vman doc/xpkgfile.1
+	vlicense COPYING
+}
