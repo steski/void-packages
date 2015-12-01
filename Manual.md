@@ -3,7 +3,7 @@
 This article contains an exhaustive manual of how to create new source
 packages for XBPS, the `Void Linux` native packaging system.
 
-*Table of Contents*  
+*Table of Contents*
 
 * [Introduction](#Introduction)
 	* [Package build phases](#buildphase)
@@ -39,7 +39,7 @@ packages for XBPS, the `Void Linux` native packaging system.
 	* [Notes](#notes)
 	* [Contributing via git](#contributing)
 * [Help](#help)
-	
+
 
 <a id="Introduction"></a>
 ## Introduction
@@ -80,7 +80,7 @@ in a directory matching `$pkgname`, i.e: `void-packages/srcpkgs/foo/template`.
 If everything went fine after running
 
     $ ./xbps-src pkg <pkgname>
-    
+
 a binary package named `foo-1.0_1.<arch>.xbps` will be generated in the local repository
 `hostdir/binpkgs`.
 
@@ -223,9 +223,9 @@ The optional 4th argument can be used to change the `file name`.
 	Installs `file` as a man page. `vman()` parses the name and
 	determines the section as well as localization. Example mappings:
 
-	`foo.1` -> `${DESTDIR}/usr/share/man/man1/foo.1`  
-	`foo.fr.1` -> `${DESTDIR}/usr/share/man/fr/man1/foo.1`  
-	`foo.1p` -> `${DESTDIR}/usr/share/man/man1/foo.1p`  
+	`foo.1` -> `${DESTDIR}/usr/share/man/man1/foo.1`
+	`foo.fr.1` -> `${DESTDIR}/usr/share/man/fr/man1/foo.1`
+	`foo.1p` -> `${DESTDIR}/usr/share/man/man1/foo.1p`
 
 - *vdoc()* `vdoc <file> [<name>]`
 
@@ -249,7 +249,7 @@ The optional 4th argument can be used to change the `file name`.
 
 	Installs `file` into `usr/share/licenses/<pkgname>` in the pkg
 	`$DESTDIR`. The optional 2nd argument can be used to change the
-	`file name`. Note: Non-`GPL` licenses, `MIT`, `BSD` and `ISC` require the 
+	`file name`. Note: Non-`GPL` licenses, `MIT`, `BSD` and `ISC` require the
 	license file to	be supplied with the binary package.
 
 - *vsv()* `vsv <service>`
@@ -329,15 +329,48 @@ one digit is required.
 <a id="optional_vars"></a>
 #### Optional variables
 
-- `hostmakedepends` The list of `host` dependencies required to build the package, and
-that will be installed to the master directory. There is no need to specify a version
-because the current version in srcpkgs will always be required.
-Example `hostmakedepends="foo blah"`.
+- `alternatives` A white space separated list of supported alternatives the package provides.
+A list is composed of three components separated by a colon: group, symlink and target.
+i.e `alternatives="vi:/usr/bin/vi:/usr/bin/nvi ex:/usr/bin/ex:/usr/bin/nvi-ex"`.
 
-- `makedepends` The list of `target` dependencies required to build the package, and that
-will be installed to the master directory. There is no need to specify a version
-because the current version in srcpkgs will always be required.
-Example `makedepends="foo blah"`.
+- `bootstrap` If enabled the source package is considered to be part of the `bootstrap`
+process and required to be able to build packages in the chroot. Only a
+small number of packages must set this property.
+
+- `broken` If set, building the package won't be allowed because its state is currently broken.
+
+- `build_style` This specifies the `build method` for a package. Read below to know more
+about the available package `build methods`. If `build_style` is not set,
+the package must define at least a `do_install()` function, and optionally
+more build phases as such `do_configure()`, `do_build()`, etc.
+
+- `build_wrksrc` A directory relative to `${wrksrc}` that will be used when building the package.
+
+- `checksum` The `sha256` digests matching `${distfiles}`. Multiple files can be
+separated by blanks. Please note that the order must be the same than
+was used in `${distfiles}`. Example `checksum="kkas00xjkjas"`
+
+- `conf_files` A list of configuration files the binary package owns; this expects full
+paths, wildcards will be extended, and multiple entries can be separated by blanks i.e:
+`conf_files="/etc/foo.conf /etc/foo2.conf /etc/foo/*.conf"`.
+
+- `configure_args` The arguments to be passed in to the `configure` script if `${build_style}`
+is set to `configure` or `gnu-configure` build methods. By default, prefix
+must be set to `/usr`. In `gnu-configure` packages, some options are already
+set by default: `--prefix=/usr --sysconfdir=/etc --infodir=/usr/share/info --mandir=/usr/share/man --localstatedir=/var`.
+
+- `configure_script` The name of the `configure` script to execute at the `configure` phase if
+`${build_style}` is set to `configure` or `gnu-configure` build methods.
+By default set to `./configure`.
+
+- `conflicts` An optional list of packages conflicting with this package.
+Conflicts can be specified with the following version comparators: `<`, `>`, `<=`, `>=`
+or `foo-1.0_1` to match an exact version. If version comparator is not
+defined (just a package name), the version comparator is automatically set to `>=0`.
+Example `conflicts="foo blah>=0.42.3"`.
+
+- `create_wrksrc` Enable it to create the `${wrksrc}` directory. Required if a package
+contains multiple `distfiles`.
 
 - `depends` The list of dependencies required to run the package. These dependencies
 are not installed to the master directory, rather are only checked if a binary package
@@ -347,15 +380,8 @@ or `foo-1.0_1` to match an exact version. If version comparator is not
 defined (just a package name), the version comparator is automatically set to `>=0`.
 Example `depends="foo blah>=1.0"`. See the `Runtime dependencies` section for more information.
 
-- `bootstrap` If enabled the source package is considered to be part of the `bootstrap`
-process and required to be able to build packages in the chroot. Only a
-small number of packages must set this property.
-
-- `conflicts` An optional list of packages conflicting with this package.
-Conflicts can be specified with the following version comparators: `<`, `>`, `<=`, `>=`
-or `foo-1.0_1` to match an exact version. If version comparator is not
-defined (just a package name), the version comparator is automatically set to `>=0`.
-Example `conflicts="foo blah>=0.42.3"`.
+- `disable_parallel_build` If set the package won't be built in parallel
+and `XBPS_MAKEJOBS` has no effect.
 
 - `distfiles` The full URL to the `upstream` source distribution files. Multiple files
 can be separated by whitespaces. The files must end in `.tar.lzma`, `.tar.xz`,
@@ -383,107 +409,68 @@ Example:
   | XORG_HOME        | http://xorg.freedesktop.org/wiki/               |
   | XORG_SITE        | http://xorg.freedesktop.org/releases/individual |
 
-- `checksum` The `sha256` digests matching `${distfiles}`. Multiple files can be
-separated by blanks. Please note that the order must be the same than
-was used in `${distfiles}`. Example `checksum="kkas00xjkjas"`
+- `hostmakedepends` The list of `host` dependencies required to build the package, and
+that will be installed to the master directory. There is no need to specify a version
+because the current version in srcpkgs will always be required.
+Example `hostmakedepends="foo blah"`.
 
-- `wrksrc` The directory name where the package sources are extracted, by default
-set to `${pkgname}-${version}`.
-
-- `build_wrksrc` A directory relative to `${wrksrc}` that will be used when building the package.
-
-- `create_wrksrc` Enable it to create the `${wrksrc}` directory. Required if a package
-contains multiple `distfiles`.
-
-- `only_for_archs` This expects a separated list of architectures where the package can be
-built matching `uname -m` output. Example `only_for_archs="x86_64 armv6l"`
-
-- `build_style` This specifies the `build method` for a package. Read below to know more
-about the available package `build methods`. If `build_style` is not set,
-the package must define at least a `do_install()` function, and optionally
-more build phases as such `do_configure()`, `do_build()`, etc.
-
-- `configure_script` The name of the `configure` script to execute at the `configure` phase if
-`${build_style}` is set to `configure` or `gnu-configure` build methods.
-By default set to `./configure`.
-
-- `configure_args` The arguments to be passed in to the `configure` script if `${build_style}`
-is set to `configure` or `gnu-configure` build methods. By default, prefix
-must be set to `/usr`. In `gnu-configure` packages, some options are already
-set by default: `--prefix=/usr --sysconfdir=/etc --infodir=/usr/share/info --mandir=/usr/share/man --localstatedir=/var`.
-
-- `make_cmd` The executable to run at the `build` phase if `${build_style}` is set to
-`configure`, `gnu-configure` or `gnu-makefile` build methods.
-By default set to `make`.
+- `keep_libtool_archives` If enabled the `GNU Libtool` archives won't be removed. By default those
+files are always removed automatically.
 
 - `make_build_args` The arguments to be passed in to `${make_cmd}` at the build phase if
 `${build_style}` is set to `configure`, `gnu-configure` or `gnu-makefile`
 build methods. Unset by default.
+
+- `make_build_target` The target to be passed in to `${make_cmd}` at the build phase if
+`${build_style}` is set to `configure`, `gnu-configure` or `gnu-makefile`
+build methods. Unset by default (`all` target).
+
+- `make_cmd` The executable to run at the `build` phase if `${build_style}` is set to
+`configure`, `gnu-configure` or `gnu-makefile` build methods.
+By default set to `make`.
 
 - `make_install_args` The arguments to be passed in to `${make_cmd}` at the `install-destdir`
 phase if `${build_style}` is set to `configure`, `gnu-configure` or
 `gnu-makefile` build methods. By default set to
 `PREFIX=/usr DESTDIR=${DESTDIR}`.
 
-- `make_build_target` The target to be passed in to `${make_cmd}` at the build phase if
-`${build_style}` is set to `configure`, `gnu-configure` or `gnu-makefile`
-build methods. Unset by default (`all` target).
-
 - `make_install_target` The target to be passed in to `${make_cmd}` at the `install-destdir` phase
 if `${build_style}` is set to `configure`, `gnu-configure` or `gnu-makefile`
 build methods. By default set to `install`.
+
+- `makedepends` The list of `target` dependencies required to build the package, and that
+will be installed to the master directory. There is no need to specify a version
+because the current version in srcpkgs will always be required.
+Example `makedepends="foo blah"`.
+
+- `noarch` If set, the binary package is not architecture specific and can be shared
+by all supported architectures.
+
+- `nodebug` If enabled -dbg packages won't be generated even if `XBPS_DEBUG_PKGS` is set.
+
+- `nocross` If set, cross compilation won't be allowed and will exit immediately.
+
+- `nopie` Only needs to be set to something to make active, disables building the package with hardening
+  features (PIE, relro, etc). Not necessary for most packages.
+
+- `noshlibprovides` If set, the ELF binaries won't be inspected to collect the provided
+sonames in shared libraries.
+
+- `nostrip` If set, the ELF binaries with debugging symbols won't be stripped. By
+default all binaries are stripped.
+
+- `only_for_archs` This expects a separated list of architectures where the package can be
+built matching `uname -m` output. Example `only_for_archs="x86_64 armv6l"`
 
 - `patch_args` The arguments to be passed in to the `patch(1)` command when applying
 patches to the package sources after `do_extract()`. Patches are stored in
 `srcpkgs/<pkgname>/patches` and must be in `-p0` format. By default set to `-Np0`.
 
-- `disable_parallel_build` If set the package won't be built in parallel
-and `XBPS_MAKEJOBS` has no effect.
-
-- `keep_libtool_archives` If enabled the `GNU Libtool` archives won't be removed. By default those
-files are always removed automatically.
-
-- `skip_extraction` A list of filenames that should not be extracted in the `extract` phase.
-This must match the basename of any url defined in `${distfiles}`.
-Example `skip_extraction="foo-${version}.tar.gz"`.
-
-- `nodebug` If enabled -dbg packages won't be generated even if `XBPS_DEBUG_PKGS` is set.
-
-- `conf_files` A list of configuration files the binary package owns; this expects full
-paths, wildcards will be extended, and multiple entries can be separated by blanks i.e:
-`conf_files="/etc/foo.conf /etc/foo2.conf /etc/foo/*.conf"`.
-
-- `noarch` If set, the binary package is not architecture specific and can be shared
-by all supported architectures.
-
-- `repository` Defines the repository in which the package will be placed. See
-  *Repositories* for a list of valid repositories.
-
-- `nostrip` If set, the ELF binaries with debugging symbols won't be stripped. By
-default all binaries are stripped.
-
-- `noshlibprovides` If set, the ELF binaries won't be inspected to collect the provided
-sonames in shared libraries.
-
-- `nocross` If set, cross compilation won't be allowed and will exit immediately.
-
 - `python_versions` A white space separated list of python versions which will
 be used to build that package. This is only used by the `python-module` build style.
 
-- `subpackages` A white space separated list of subpackages (matching `foo_package()`)
-to override the guessed list. Only use this if a specific order of subpackages is required,
-otherwise the default would work in most cases.
-
-- `broken` If set, building the package won't be allowed because its state is currently broken.
-
-- `shlib_provides` A white space separated list of additional sonames the package provides on.
-This appends to the generated file rather than replacing it.
-
-- `shlib_requires` A white space separated list of additional sonames the package requires.
-This appends to the generated file rather than replacing it.
-
-- `nopie` Only needs to be set to something to make active, disables building the package with hardening 
-  features (PIE, relro, etc). Not necessary for most packages.
+- `repository` Defines the repository in which the package will be placed. See
+  *Repositories* for a list of valid repositories.
 
 - `reverts` xbps supports a unique feature which allows to downgrade from broken
 packages automatically. In the `reverts` field one can define a list of broken
@@ -492,12 +479,25 @@ pkgver the resulting package should revert. This field *must* be defined before
 defined in `reverts` must be lesser than the one defined in `version`.
 example: `reverts="2.0_1 2.0_2"`
 
-- `alternatives` A white space separated list of supported alternatives the package provides.
-A list is composed of three components separated by a colon: group, symlink and target.
-i.e `alternatives="vi:/usr/bin/vi:/usr/bin/nvi ex:/usr/bin/ex:/usr/bin/nvi-ex"`.
+- `shlib_provides` A white space separated list of additional sonames the package provides on.
+This appends to the generated file rather than replacing it.
+
+- `shlib_requires` A white space separated list of additional sonames the package requires.
+This appends to the generated file rather than replacing it.
+
+- `skip_extraction` A list of filenames that should not be extracted in the `extract` phase.
+This must match the basename of any url defined in `${distfiles}`.
+Example `skip_extraction="foo-${version}.tar.gz"`.
+
+- `subpackages` A white space separated list of subpackages (matching `foo_package()`)
+to override the guessed list. Only use this if a specific order of subpackages is required,
+otherwise the default would work in most cases.
+
+- `wrksrc` The directory name where the package sources are extracted, by default
+set to `${pkgname}-${version}`.
 
 <a id="repositories"></a>
-#### Repositories
+### Repositories
 
 <a id="repo_by_branch"></a>
 ##### Repositories defined by Branch
@@ -548,7 +548,7 @@ versions.  Example: `ignore="*b*"`
 upstream versions. Example: `version=${version//./_}`
 
 <a id="build_scripts"></a>
-### build style scripts
+### Build style scripts
 
 The `build_style` variable specifies the build method to build and install a
 package. It expects the name of any available script in the
